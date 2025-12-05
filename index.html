@@ -27,7 +27,7 @@
       border-radius: 20px;
       box-shadow: 0 15px 30px rgba(0,0,0,0.12);
       padding: 20px 24px 26px;
-      max-width: 720px;
+      max-width: 520px;
       width: 100%;
     }
 
@@ -89,12 +89,11 @@
       box-shadow: 0 3px 10px rgba(79, 109, 245, 0.35);
     }
 
-.board {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(110px, 1fr)); /* bigger cards */
-  gap: 14px; /* more space between cards */
-}
-
+    .board {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(60px, 1fr));
+      gap: 10px;
+    }
 
     .card {
       position: relative;
@@ -344,3 +343,7 @@
 
     // start first game
     resetGame();
+  </script>
+</body>
+</html>
+
