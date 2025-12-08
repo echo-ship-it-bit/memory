@@ -1,222 +1,152 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <title>Memory Match</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<script>
+  const symbols = ["🍕","🌈","🐝","⭐","🎧","🍩","🌵","🐢"]; // 8 pairs = 16 cards
+  const board = document.getElementById("board");
+  const movesEl = document.getElementById("moves");
+  const timeEl = document.getElementById("time");
+  const messageEl = document.getElementById("message");
+  const resetBtn = document.getElementById("reset");
 
-  <style>
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  let firstCard = null;
+  let secondCard = null;
+  let lockBoard = false;
+  let moves = 0;
+  let matchedPairs = 0;
+  let timer = null;
+  let seconds = 0;
+  let gameStarted = false;
+
+  function shuffle(array) {
+    for (let i = array.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [array[i], array[j]] = [array[j], array[i]];
+    }
+    return array;
+  }
+
+  function startTimer() {
+    if (gameStarted) return;
+    gameStarted = true;
+    timer = setInterval(() => {
+      seconds++;
+      timeEl.textContent = seconds + "s";
+    }, 1000);
+  }
+
+  function stopTimer() {
+    clearInterval(timer);
+    timer = null;
+  }
+
+  function resetTimer() {
+    stopTimer();
+    seconds = 0;
+    gameStarted = false;
+    timeEl.textContent = "0s";
+  }
+
+  function createCardElement(symbol) {
+    const card = document.createElement("div");
+    card.classList.add("card");
+    card.dataset.symbol = symbol;
+
+    const inner = document.createElement("div");
+    inner.classList.add("card-inner");
+
+    const front = document.createElement("div");
+    front.classList.add("card-face", "card-front");
+    front.textContent = "?";
+
+    const back = document.createElement("div");
+    back.classList.add("card-face", "card-back");
+    back.textContent = symbol;
+
+    inner.appendChild(front);
+    inner.appendChild(back);
+    card.appendChild(inner);
+
+    card.addEventListener("click", () => handleCardClick(card));
+
+    return card;
+  }
+
+  function setupBoard() {
+    board.innerHTML = "";
+    const deck = shuffle([...symbols, ...symbols]); // duplicate + shuffle
+    deck.forEach(sym => {
+      const cardEl = createCardElement(sym);
+      board.appendChild(cardEl);
+    });
+  }
+
+  function resetGame() {
+    firstCard = null;
+    secondCard = null;
+    lockBoard = false;
+    moves = 0;
+    matchedPairs = 0;
+    movesEl.textContent = "0";
+    messageEl.textContent = "";
+    resetTimer();
+    setupBoard();
+  }
+
+  function handleCardClick(card) {
+    if (lockBoard) return;
+    if (card === firstCard) return;
+    if (card.classList.contains("matched")) return;
+
+    startTimer();
+
+    card.classList.add("flipped");
+
+    if (!firstCard) {
+      firstCard = card;
+      return;
     }
 
-    body {
-      min-height: 100vh;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      background: radial-gradient(circle at top, #f7f7ff 0%, #dfe7f3 40%, #c7d0e5 100%);
-      padding: 20px;
-    }
+    secondCard = card;
+    lockBoard = true;
+    moves++;
+    movesEl.textContent = moves;
 
-    .game-wrapper {
-      background: #ffffffee;
-      border-radius: 20px;
-      box-shadow: 0 15px 30px rgba(0,0,0,0.12);
-      padding: 20px 24px 26px;
-      max-width: 720px;
-      width: 100%;
-    }
+    checkForMatch();
+  }
 
-    .game-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 12px;
-      gap: 8px;
-      flex-wrap: wrap;
-    }
+  function checkForMatch() {
+    const isMatch = firstCard.dataset.symbol === secondCard.dataset.symbol;
 
-    .title {
-      font-size: 1.3rem;
-      font-weight: 700;
-      letter-spacing: 0.03em;
-    }
+    if (isMatch) {
+      firstCard.classList.add("matched");
+      secondCard.classList.add("matched");
+      matchedPairs++;
 
-    .stats {
-      display: flex;
-      gap: 12px;
-      font-size: 0.9rem;
-    }
+      resetSelection();
 
-    .stat-label {
-      opacity: 0.7;
-      margin-right: 4px;
-    }
-
-    .controls {
-      display: flex;
-      justify-content: flex-end;
-      margin-bottom: 10px;
-    }
-
-    button#reset {
-      border: none;
-      outline: none;
-      padding: 6px 14px;
-      border-radius: 999px;
-      background: #4f6df5;
-      color: #fff;
-      font-size: 0.85rem;
-      font-weight: 600;
-      cursor: pointer;
-      box-shadow: 0 4px 12px rgba(79, 109, 245, 0.4);
-      transition: transform 0.08s ease, box-shadow 0.08s ease, background 0.15s ease;
-      white-space: nowrap;
-    }
-
-    button#reset:hover {
-      transform: translateY(-1px);
-      box-shadow: 0 6px 16px rgba(79, 109, 245, 0.5);
-      background: #425be0;
-    }
-
-    button#reset:active {
-      transform: translateY(0);
-      box-shadow: 0 3px 10px rgba(79, 109, 245, 0.35);
-    }
-
-    .board {
-      display: grid;
-      grid-template-columns: repeat(4, minmax(110px, 1fr)); /* big cards */
-      gap: 16px;
-    }
-
-    .card {
-      position: relative;
-      width: 100%;
-      padding-bottom: 130%; /* aspect ratio */
-      cursor: pointer;
-      perspective: 600px;
-    }
-
-    .card-inner {
-      position: absolute;
-      inset: 0;
-      border-radius: 14px;
-      transform-style: preserve-3d;
-      transition: transform 0.35s ease;
-    }
-
-    .card.flipped .card-inner,
-    .card.matched .card-inner {
-      transform: rotateY(180deg);
-    }
-
-    .card-face {
-      position: absolute;
-      inset: 0;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      border-radius: 14px;
-      backface-visibility: hidden;
-      user-select: none;
-      -webkit-tap-highlight-color: transparent;
-    }
-
-    .card-front {
-      background: linear-gradient(135deg, #4f6df5, #8a9cff);
-      color: #fff;
-      font-weight: 700;
-      font-size: 1.2rem;
-    }
-
-    .card-back {
-      background: #f7f8ff;
-      border: 2px solid #d4dbff;
-      transform: rotateY(180deg);
-      font-size: 1.6rem;
-    }
-
-    .message {
-      margin-top: 12px;
-      font-size: 0.9rem;
-      text-align: center;
-      min-height: 18px;
-      opacity: 0.85;
-    }
-
-    .message.win {
-      font-weight: 600;
-    }
-
-    @media (max-width: 480px) {
-      .game-wrapper {
-        padding: 16px 14px 20px;
+      if (matchedPairs === symbols.length) {
+        handleWin();
       }
-
-      .board {
-        gap: 8px;
-      }
-
-      .card-front {
-        font-size: 1rem;
-      }
-
-      .card-back {
-        font-size: 1.4rem;
-      }
+    } else {
+      setTimeout(() => {
+        firstCard.classList.remove("flipped");
+        secondCard.classList.remove("flipped");
+        resetSelection();
+      }, 800);
     }
-  </style>
-</head>
-<body>
-  <div class="game-wrapper">
-    <div class="game-header">
-      <div class="title">Memory Match</div>
-      <div class="stats">
-        <div><span class="stat-label">Moves:</span><span id="moves">0</span></div>
-        <div><span class="stat-label">Time:</span><span id="time">0s</span></div>
-      </div>
-    </div>
+  }
 
-    <div class="controls">
-      <button id="reset">New game</button>
-    </div>
+  function resetSelection() {
+    [firstCard, secondCard] = [null, null];
+    lockBoard = false;
+  }
 
-    <div class="board" id="board">
-      <!-- cards will be injected here -->
-    </div>
+  function handleWin() {
+    stopTimer();
+    messageEl.classList.add("win");
+    messageEl.textContent = `Nice work! You won in ${moves} moves and ${seconds}s.`;
+  }
 
-    <div class="message" id="message"></div>
-  </div>
+  resetBtn.addEventListener("click", resetGame);
 
-  <script>
-    const symbols = ["🍕","🌈","🐝","⭐","🎧","🍩","🌵","🐢"]; // 8 pairs = 16 cards
-    const board = document.getElementById("board");
-    const movesEl = document.getElementById("moves");
-    const timeEl = document.getElementById("time");
-    const messageEl = document.getElementById("message");
-    const resetBtn = document.getElementById("reset");
-
-    let firstCard = null;
-    let secondCard = null;
-    let lockBoard = false;
-    let moves = 0;
-    let matchedPairs = 0;
-    let timer = null;
-    let seconds = 0;
-    let gameStarted = false;
-
-    function shuffle(array) {
-      for (let i = array.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [array[i], array[j]] = [array[j], array[i]];
-      }
-      return array;
-    }
-
-    functi
+  // Start first game
+  resetGame();
+</script>
